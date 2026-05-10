@@ -2,7 +2,71 @@
 const Reservation = require('../models/Reservation');
 const User = require('../models/User');
 const Room = require('../models/Room');
+const Invoice = require('../models/Invoice')
 const mongoose = require('mongoose');
+
+async function generateInvoice(req, res){
+  try{
+    const { reservation_id} = req.params;
+    if(!reservation_id) return res.status(400).json({ error: 'Faltan datos' });
+    const reservation = await Reservation.findOne({ reservation_id });
+    if(!reservation) return res.status(400).json({ error: 'La reserva no exixte' });
+    
+    let ahora = new Date();
+    if(reservation.check_out < ahora || reservation.cancelation_date != null){
+      const invoice = await Invoice.findOne({ reservation_id });
+      if(invoice){
+        return res.json(invoice)
+      }else{
+        let new_invoicenum;
+        let ultimo_invoicenum = await Invoice.findOne()
+          .sort({ createdAt: -1 })
+          .select('invoice_number');
+
+        if (!ultimo_invoicenum) {
+          // En caso de no tener ninguna factura creamos automaticamente el numero uno
+          new_invoicenum = "Factura-00001"
+        } else {
+          //Generamos el nuevo id de reserva
+          let arr_number = ultimo_invoicenum.invoice_number.split("-");
+          num_id = parseInt(arr_number[1])
+          new_invoicenum = "Factura-" + String(num_id + 1).padStart(5, '0');
+        }
+        const cliente = await User.findOne({ user_id: reservation.user_id});
+        if(!cliente) return res.status(400).json({ error: 'Cliente no encontrado' });
+
+
+        let new_invoice = new Invoice({
+          reservation_id : reservation.reservation_id,
+          room_id: reservation.room_id,
+          user_id: reservation.user_id,
+          check_in: reservation.check_in,
+          check_out: reservation.check_out,
+          price:reservation.price,
+          cancelation_date: reservation.cancelation_date,
+          invoice_date: ahora,
+          invoice_number: new_invoicenum,
+          user_name: cliente.name,
+          user_surname: cliente.surname,
+          user_dni: cliente.dni,
+          user_city: cliente.city
+        });
+
+        await new_invoice.save();
+        return res.status(201).json(new_invoice);
+
+      }
+    }else{
+      return res.status(400).json({ error: 'No es posible obtener la factura de una reserva activa' });
+    }
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: 'Error al generar factura', detalle: err.message, erroresValidacion: err.errors });
+  }
+  
+
+}
 
 //Función para comprobar ocupación
 async function checkOcupation(check_in, check_out, room_id, reservation_id) {
@@ -332,5 +396,6 @@ module.exports = {
   getActiveReservations,
   updateReservation,
   calculatePrice,
-  calculateCancelationPrice
+  calculateCancelationPrice,
+  generateInvoice
 };

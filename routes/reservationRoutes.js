@@ -4,6 +4,8 @@ const router = express.Router();
 const reservationController = require('../controllers/reservationController');
 const { requireLogin, requireRole } = require('../middleware/authMiddleware');
 
+router.get("/:reservation_id/invoice", reservationController.generateInvoice);
+
 // Todas requieren estar autenticado
 router.use(requireLogin);
 
