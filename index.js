@@ -6,6 +6,7 @@ const reservationRoutes = require('./routes/reservationRoutes');
 const userRoutes = require('./routes/userRoutes');
 const roomRoutes = require('./routes/roomRoutes')
 const reviewRoutes = require('./routes/reviewRoutes');
+const invoiceRoutes = require('./routes/invoiceRoutes')
 const dbConnection = require('./db');
 const path = require('path');
 require('dotenv').config();
@@ -21,6 +22,7 @@ dbConnection();
 // Rutas
 app.use('/auth', authRoutes);
 app.use('/reservation',reservationRoutes)
+app.use('/invoice',invoiceRoutes)
 app.use('/user',userRoutes);
 app.use('/room',roomRoutes) //RUTAS DEFINIDAS Y FUNCIONALES, FALTAN DEFINIR BIEN ROLES
 app.use('/review', reviewRoutes); // RUTAS DE RESEÑAS

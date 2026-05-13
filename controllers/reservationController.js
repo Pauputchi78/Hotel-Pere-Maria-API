@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Room = require('../models/Room');
 const Invoice = require('../models/Invoice')
 const mongoose = require('mongoose');
+const PDFDocument = require('pdfkit');
 
 async function generateInvoice(req, res){
   try{
@@ -15,8 +16,9 @@ async function generateInvoice(req, res){
     let ahora = new Date();
     if(reservation.check_out < ahora || reservation.cancelation_date != null){
       const invoice = await Invoice.findOne({ reservation_id });
+      let new_invoice;
       if(invoice){
-        return res.json(invoice)
+        new_invoice = invoice;
       }else{
         let new_invoicenum;
         let ultimo_invoicenum = await Invoice.findOne()
@@ -36,7 +38,7 @@ async function generateInvoice(req, res){
         if(!cliente) return res.status(400).json({ error: 'Cliente no encontrado' });
 
 
-        let new_invoice = new Invoice({
+        new_invoice = new Invoice({
           reservation_id : reservation.reservation_id,
           room_id: reservation.room_id,
           user_id: reservation.user_id,
@@ -53,9 +55,90 @@ async function generateInvoice(req, res){
         });
 
         await new_invoice.save();
-        return res.status(201).json(new_invoice);
-
+        
       }
+      // --- GENERACIÓN DEL PDF ---
+    const doc = new PDFDocument({ margin: 50 });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename=factura-${new_invoice.invoice_number}.pdf`);
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+
+    doc.pipe(res);
+
+    // --- CABECERA (DATOS DE TU EMPRESA) ---
+    doc.fillColor('#444444')
+      .fontSize(20)
+      .text('Hotel IES Pere Maria', 50, 50, { bold: true });
+
+    doc.fontSize(10)
+      .text('NIF: N05746789')
+      .text('Barca del Bou, 18')
+      .text('03502 Benidorm, Alicante')
+      .text('Tel: +34 965 00 00 00') // Ejemplo
+      .moveDown();
+
+    // Lado derecho de la cabecera: Datos de la factura
+    doc.fontSize(20)
+      .fillColor('#2d52a2') // Un azul corporativo
+      .text('FACTURA', 400, 50, { align: 'right' });
+
+    doc.fontSize(10)
+      .fillColor('#444444')
+      .text(`Nº: ${new_invoice.invoice_number}`, 400, 80, { align: 'right' })
+      .text(`Fecha: ${new_invoice.invoice_date.toLocaleDateString()}`, 400, 95, { align: 'right' });
+
+    // Línea divisoria
+    doc.moveTo(50, 140).lineTo(550, 140).strokeColor('#cccccc').stroke();
+
+    // --- BLOQUE: CLIENTE Y DETALLES ---
+    doc.moveDown(2);
+    const yPos = doc.y;
+
+    // Columna Cliente
+    doc.fontSize(12).fillColor('#2d52a2').text('CLIENTE', 50, yPos);
+    doc.fontSize(10).fillColor('#444444')
+      .text(`${new_invoice.user_name} ${new_invoice.user_surname}`, 50, yPos + 20)
+      .text(`DNI: ${new_invoice.user_dni}`)
+      .text(`Ciudad: ${new_invoice.user_city || 'No especificada'}`);
+
+    // Columna Reserva
+    doc.fontSize(12).fillColor('#2d52a2').text('DETALLES RESERVA', 300, yPos);
+    doc.fontSize(10).fillColor('#444444')
+      .text(`Reserva ID: ${new_invoice.reservation_id}`, 300, yPos + 20)
+      .text(`Habitación: ${new_invoice.room_id}`)
+      .text(`Entrada: ${new_invoice.check_in.toLocaleDateString()}`)
+      .text(`Salida: ${new_invoice.check_out.toLocaleDateString()}`);
+
+    doc.moveDown(4);
+
+    // --- TABLA DE CONCEPTOS (SIMULADA) ---
+    const tableTop = doc.y;
+    doc.fillColor('#2d52a2').fontSize(11);
+    doc.text('Descripción', 50, tableTop);
+    doc.text('Importe', 450, tableTop, { align: 'right' });
+
+    doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).strokeColor('#2d52a2').stroke();
+
+    doc.fillColor('#444444').fontSize(10);
+    doc.text(`Servicio de alojamiento - Habitación ${new_invoice.room_id}`, 50, tableTop + 30);
+    doc.text(`${new_invoice.price.toFixed(2)}€`, 450, tableTop + 30, { align: 'right' });
+
+    if (new_invoice.cancelation_date) {
+        doc.fillColor('red').text(`Reserva cancelada el: ${new_invoice.cancelation_date.toLocaleDateString()}`, 50, tableTop + 45);
+    }
+
+    // --- PIE DE FACTURA: TOTAL ---
+    const totalTop = tableTop + 80;
+    doc.rect(350, totalTop, 200, 40).fill('#f9f9f9');
+    doc.fillColor('#2d52a2').fontSize(14).text('TOTAL', 360, totalTop + 12);
+    doc.fillColor('#000000').fontSize(14).text(`${new_invoice.price.toFixed(2)}€`, 450, totalTop + 12, { align: 'right' });
+
+    // Nota legal
+    doc.fontSize(8).fillColor('#aaaaaa').text('Gracias por su confianza en Hotel IES Pere Maria.', 50, 700, { align: 'center' });
+
+    doc.end();
+
     }else{
       return res.status(400).json({ error: 'No es posible obtener la factura de una reserva activa' });
     }
@@ -65,7 +148,6 @@ async function generateInvoice(req, res){
     res.status(500).json({ error: 'Error al generar factura', detalle: err.message, erroresValidacion: err.errors });
   }
   
-
 }
 
 //Función para comprobar ocupación
