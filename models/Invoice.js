@@ -53,8 +53,7 @@ const invoiceSchema = new mongoose.Schema({
         required: [true, 'El numero de factura es obligatorio'],
         trim: true,
         unique: true,
-        minlength: [9, 'El num de factura debe tener al menos 9 caracteres'],
-        match: [/^Factura-[0-9]{5}$/, 'El formato debe ser Factura- seguido de 5 números (Ej: Factura-00001)']
+        match: [/^F[0-9]{4}-[0-9]{5}$/, 'El formato debe ser F seguido del año, guion y 5 números (Ej: F2026-00001)']
     },
     user_name:{
         type: String,

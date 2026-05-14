@@ -15,6 +15,8 @@ async function generateInvoice(req, res){
     if(!reservation) return res.status(400).json({ error: 'La reserva no exixte' });
     
     let ahora = new Date();
+    const anioActual = ahora.getFullYear();
+
     if(reservation.check_out < ahora || reservation.cancelation_date != null){
       const invoice = await Invoice.findOne({ reservation_id });
       let new_invoice;
@@ -22,18 +24,21 @@ async function generateInvoice(req, res){
         new_invoice = invoice;
       }else{
         let new_invoicenum;
-        let ultimo_invoicenum = await Invoice.findOne()
-          .sort({ createdAt: -1 })
-          .select('invoice_number');
+
+        const ultimo_invoicenum = await Invoice.findOne({
+          invoice_number: new RegExp('^F' + anioActual)
+        })
+        .sort({ invoice_number: -1 }) // Ordenamos por el string del número para sacar el más alto
+        .select('invoice_number');
 
         if (!ultimo_invoicenum) {
           // En caso de no tener ninguna factura creamos automaticamente el numero uno
-          new_invoicenum = "Factura-00001"
+          new_invoicenum = `F${anioActual}-00001`
         } else {
-          //Generamos el nuevo id de reserva
-          let arr_number = ultimo_invoicenum.invoice_number.split("-");
-          num_id = parseInt(arr_number[1])
-          new_invoicenum = "Factura-" + String(num_id + 1).padStart(5, '0');
+          const ultimoNumeroStr = ultimo_invoicenum.invoice_number.slice(-5);
+          const siguienteNumero = parseInt(ultimoNumeroStr) + 1;
+          
+          new_invoicenum = `F${anioActual}-${String(siguienteNumero).padStart(5, '0')}`;
         }
         const cliente = await User.findOne({ user_id: reservation.user_id});
         if(!cliente) return res.status(400).json({ error: 'Cliente no encontrado' });
@@ -65,7 +70,7 @@ async function generateInvoice(req, res){
     const doc = new PDFDocument({ margin: 50 });
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename=factura-${new_invoice.invoice_number}.pdf`);
+    res.setHeader('Content-Disposition', `inline; filename=${new_invoice.invoice_number}.pdf`);
     res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
 
     doc.pipe(res);
