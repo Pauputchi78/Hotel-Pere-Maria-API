@@ -6,7 +6,8 @@ const reservationRoutes = require('./routes/reservationRoutes');
 const userRoutes = require('./routes/userRoutes');
 const roomRoutes = require('./routes/roomRoutes')
 const reviewRoutes = require('./routes/reviewRoutes');
-const invoiceRoutes = require('./routes/invoiceRoutes')
+const invoiceRoutes = require('./routes/invoiceRoutes');
+const hotelconfigRoutes = require('./routes/hotelconfigRoutes');
 const dbConnection = require('./db');
 const path = require('path');
 require('dotenv').config();
@@ -24,8 +25,9 @@ app.use('/auth', authRoutes);
 app.use('/reservation',reservationRoutes)
 app.use('/invoice',invoiceRoutes)
 app.use('/user',userRoutes);
-app.use('/room',roomRoutes) //RUTAS DEFINIDAS Y FUNCIONALES, FALTAN DEFINIR BIEN ROLES
+app.use('/room',roomRoutes); //RUTAS DEFINIDAS Y FUNCIONALES, FALTAN DEFINIR BIEN ROLES
 app.use('/review', reviewRoutes); // RUTAS DE RESEÑAS
+app.use('/config',hotelconfigRoutes);
 
 //Multer para subida de imagenes
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

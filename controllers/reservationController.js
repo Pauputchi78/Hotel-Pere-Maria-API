@@ -5,6 +5,7 @@ const Room = require('../models/Room');
 const Invoice = require('../models/Invoice')
 const mongoose = require('mongoose');
 const PDFDocument = require('pdfkit');
+const Hotelconfig = require('../models/Hotelconfig');
 
 async function generateInvoice(req, res){
   try{
@@ -57,6 +58,9 @@ async function generateInvoice(req, res){
         await new_invoice.save();
         
       }
+
+    const config = await Hotelconfig.findOne();
+    if(!config) return res.status(400).json({ error: 'Actualmente no disponemos de datos en nuestra empresa' });
       // --- GENERACIÓN DEL PDF ---
     const doc = new PDFDocument({ margin: 50 });
 
@@ -69,13 +73,13 @@ async function generateInvoice(req, res){
     // --- CABECERA (DATOS DE TU EMPRESA) ---
     doc.fillColor('#444444')
       .fontSize(20)
-      .text('Hotel IES Pere Maria', 50, 50, { bold: true });
+      .text(config.nombreHotel, 50, 50, { bold: true });
 
     doc.fontSize(10)
-      .text('NIF: N05746789')
-      .text('Barca del Bou, 18')
-      .text('03502 Benidorm, Alicante')
-      .text('Tel: +34 965 00 00 00') // Ejemplo
+      .text(`NIF: ${config.nif}`)
+      .text(config.direccion)
+      .text(`${config.cp} ${config.ciudad}, ${config.provincia}`)
+      .text(`Tel: ${config.telefono}`) // Ejemplo
       .moveDown();
 
     // Lado derecho de la cabecera: Datos de la factura
