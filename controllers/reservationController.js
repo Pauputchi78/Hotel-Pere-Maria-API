@@ -493,8 +493,6 @@ async function calculateCancelationPrice(req, res) {
       discount = precioCancel * 1;
     } else if (diasFaltantes >= 3) {
       discount = precioCancel * 0.5;
-    } else if (diasFaltantes >= 1) {
-      discount = precioCancel * 0.15;
     }
 
     precioCancel = precioCancel - discount;
