@@ -6,6 +6,7 @@ const Invoice = require('../models/Invoice')
 const mongoose = require('mongoose');
 const PDFDocument = require('pdfkit');
 const Hotelconfig = require('../models/Hotelconfig');
+const auditCtrl = require('../controllers/BookingAuditController');
 
 async function generateInvoice(req, res){
   try{
@@ -248,6 +249,13 @@ async function addReservation(req, res) {
     if (verif.respuesta) {
       let reservation = new Reservation({ reservation_id: new_id, room_id, user_id, check_in: nuevaEntrada, check_out: nuevaSalida, price: precioNum, createdBy });
       await reservation.save();
+      await auditCtrl.createAuditLog(
+        reservation.reservation_id, 
+        'CREATE', 
+        req, 
+        null, 
+        reservation
+      );
       return res.json(reservation)
     } else {
       return res.status(400).json({ error: verif.error })
@@ -274,6 +282,8 @@ async function cancelReservation(req, res) {
       return res.status(400).json({ error: 'La reserva ya estaba cancelada anteriormente' });
     }
 
+    const reservationold = reservation.toObject();
+
     let newPrice = parseFloat(price);
     if (isNaN(newPrice) || newPrice < 0) {
       return res.status(400).json({ error: "El precio debe ser un número mayor o igual a 0" });
@@ -282,6 +292,14 @@ async function cancelReservation(req, res) {
     reservation.price = newPrice;
     reservation.cancelation_date = new Date();
     await reservation.save();
+
+    await auditCtrl.createAuditLog(
+        reservation.reservation_id, 
+        'CANCEL', 
+        req, 
+        reservationold, 
+        reservation
+      );
 
     res.json({ mensaje: 'Cancelada correctamente', reservation });
   } catch (err) {
@@ -348,6 +366,8 @@ async function updateReservation(req, res) {
     if (!reservation) return res.status(404).json({ error: 'Reserva no encontrada' });
     if (reservation.cancelation_date != null) return res.status(404).json({ error: 'No es posible modificar reservas canceladas' });
 
+    const reservationold = reservation.toObject();
+
     let user = await User.findOne({ user_id });
     if (!user) return res.status(400).json({ error: 'El usuario introducido no exite' });
 
@@ -390,6 +410,16 @@ async function updateReservation(req, res) {
       reservation.user_id = user_id;
       reservation.price = precioNum;
       await reservation.save();
+
+      await auditCtrl.createAuditLog(
+        reservation.reservation_id, 
+        'UPDATE', 
+        req, 
+        reservationold, 
+        reservation
+      );
+
+
       return res.json({ mensaje: 'Reserva modificada correctamente', reservation });
     } else {
       return res.status(400).json({ error: verif.error })
