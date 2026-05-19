@@ -44,6 +44,8 @@ async function generateInvoice(req, res){
         const cliente = await User.findOne({ user_id: reservation.user_id});
         if(!cliente) return res.status(400).json({ error: 'Cliente no encontrado' });
 
+        const config = await Hotelconfig.findOne();
+
 
         new_invoice = new Invoice({
           reservation_id : reservation.reservation_id,
@@ -58,15 +60,20 @@ async function generateInvoice(req, res){
           user_name: cliente.name,
           user_surname: cliente.surname,
           user_dni: cliente.dni,
-          user_city: cliente.city
+          user_city: cliente.city,
+          hotel_nombre: config.nombreHotel,
+          hotel_nif: config.nif,
+          hotel_direccion: config.direccion,
+          hotel_telefono: config.telefono,
+          hotel_cp: config.cp,
+          hotel_ciudad: config.ciudad,
+          hotel_provincia: config.provincia
         });
 
         await new_invoice.save();
         
       }
 
-    const config = await Hotelconfig.findOne();
-    if(!config) return res.status(400).json({ error: 'Actualmente no disponemos de datos en nuestra empresa' });
       // --- GENERACIÓN DEL PDF ---
     const doc = new PDFDocument({ margin: 50 });
 
@@ -76,21 +83,21 @@ async function generateInvoice(req, res){
 
     doc.pipe(res);
 
-    // --- CABECERA (DATOS DE TU EMPRESA) ---
+    // --- CABECERA---
     doc.fillColor('#444444')
       .fontSize(20)
-      .text(config.nombreHotel, 50, 50, { bold: true });
+      .text(new_invoice.hotel_nombre, 50, 50, { bold: true });
 
     doc.fontSize(10)
-      .text(`NIF: ${config.nif}`)
-      .text(config.direccion)
-      .text(`${config.cp} ${config.ciudad}, ${config.provincia}`)
-      .text(`Tel: ${config.telefono}`) // Ejemplo
+      .text(`NIF: ${new_invoice.hotel_nif}`)
+      .text(new_invoice.hotel_direccion)
+      .text(`${new_invoice.hotel_cp} ${new_invoice.hotel_ciudad}, ${new_invoice.hotel_provincia}`)
+      .text(`Tel: ${new_invoice.hotel_telefono}`)
       .moveDown();
 
-    // Lado derecho de la cabecera: Datos de la factura
+    // Lado derecho de la cabecera:
     doc.fontSize(20)
-      .fillColor('#2d52a2') // Un azul corporativo
+      .fillColor('#2d52a2')
       .text('FACTURA', 400, 50, { align: 'right' });
 
     doc.fontSize(10)
@@ -122,6 +129,11 @@ async function generateInvoice(req, res){
 
     doc.moveDown(4);
 
+    // --- CÁLCULOS DE IMPUESTOS ---
+    const totalCompleto = new_invoice.price;
+    const baseImponible = totalCompleto / 1.10;
+    const importeIva = totalCompleto - baseImponible;
+
     // --- TABLA DE CONCEPTOS (SIMULADA) ---
     const tableTop = doc.y;
     doc.fillColor('#2d52a2').fontSize(11);
@@ -130,19 +142,41 @@ async function generateInvoice(req, res){
 
     doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).strokeColor('#2d52a2').stroke();
 
+    // Concepto con la aclaración de tasas incluidas
     doc.fillColor('#444444').fontSize(10);
-    doc.text(`Servicio de alojamiento - Habitación ${new_invoice.room_id}`, 50, tableTop + 30);
-    doc.text(`${new_invoice.price.toFixed(2)}€`, 450, tableTop + 30, { align: 'right' });
+    doc.text(`Servicio de alojamiento - Habitación ${new_invoice.room_id} (Impuestos incluidos)`, 50, tableTop + 30);
+    doc.text(`${totalCompleto.toFixed(2)}€`, 450, tableTop + 30, { align: 'right' });
+
+    let currentY = tableTop + 45;
 
     if (new_invoice.cancelation_date) {
-        doc.fillColor('red').text(`Reserva cancelada el: ${new_invoice.cancelation_date.toLocaleDateString()}`, 50, tableTop + 45);
+        doc.fillColor('red').text(`Reserva cancelada el: ${new_invoice.cancelation_date.toLocaleDateString()}`, 50, currentY);
+        currentY += 15;
     }
 
-    // --- PIE DE FACTURA: TOTAL ---
-    const totalTop = tableTop + 80;
-    doc.rect(350, totalTop, 200, 40).fill('#f9f9f9');
-    doc.fillColor('#2d52a2').fontSize(14).text('TOTAL', 360, totalTop + 12);
-    doc.fillColor('#000000').fontSize(14).text(`${new_invoice.price.toFixed(2)}€`, 450, totalTop + 12, { align: 'right' });
+    // Línea de cierre de la tabla
+    doc.moveTo(50, currentY + 10).lineTo(550, currentY + 10).strokeColor('#cccccc').stroke();
+
+    // --- PIE DE FACTURA: TOTALES DESGLOSADOS ---
+    const totalTop = currentY + 25;
+    
+    // Cuadro gris de fondo extendido para los tres conceptos
+    doc.rect(330, totalTop, 220, 75).fill('#f9f9f9');
+    
+    // Base Imponible
+    doc.fillColor('#555555').fontSize(10).text('Base Imponible:', 340, totalTop + 10);
+    doc.fillColor('#000000').fontSize(10).text(`${baseImponible.toFixed(2)}€`, 450, totalTop + 10, { align: 'right' });
+    
+    // IVA 10%
+    doc.fillColor('#555555').fontSize(10).text('I.V.A. (10%):', 340, totalTop + 28);
+    doc.fillColor('#000000').fontSize(10).text(`${importeIva.toFixed(2)}€`, 450, totalTop + 28, { align: 'right' });
+    
+    // Línea interna divisoria fina
+    doc.moveTo(340, totalTop + 44).lineTo(540, totalTop + 44).strokeColor('#e0e0e0').stroke();
+
+    // Importe Total (Destacado)
+    doc.fillColor('#2d52a2').fontSize(12).text('TOTAL NETO:', 340, totalTop + 52, { bold: true });
+    doc.fillColor('#000000').fontSize(12).text(`${totalCompleto.toFixed(2)}€`, 450, totalTop + 52, { align: 'right', bold: true });
 
     // Nota legal
     doc.fontSize(8).fillColor('#aaaaaa').text('Gracias por su confianza en Hotel IES Pere Maria.', 50, 700, { align: 'center' });

@@ -33,9 +33,9 @@ const hotelconfigSchema = new mongoose.Schema({
     }
 
 
-},{ timestamps: true }//Añadira dos campos automaticametne:
-//  Fecha de creación y de modificación "createdAt" y "updatedAt"
-);
+},{ timestamps: true,
+    collection: 'hotelconfigs'
+ });
 
 const Hotelconfig = mongoose.model('Hotelconfig', hotelconfigSchema);
 module.exports = Hotelconfig;

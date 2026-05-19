@@ -79,7 +79,31 @@ const invoiceSchema = new mongoose.Schema({
         type: String,
         default: null,
         trim: true,
+    },
+    hotel_nombre: {
+        type: String,
+        required: [true, 'El nombre del hotel es obligatorio']
+    },
+    hotel_nif: {
+        type: String,
+        required: [true, 'El NIF es obligatorio']
+    },
+    hotel_direccion: {
+        type: String
+    },
+    hotel_telefono: {
+        type: String
+    },
+    hotel_cp: {
+        type: String
+    },
+    hotel_ciudad: {
+        type: String
+    },
+    hotel_provincia: {
+        type: String
     }
+
 
 
 },{ timestamps: true }//Añadira dos campos automaticametne:
