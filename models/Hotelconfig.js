@@ -30,6 +30,26 @@ const hotelconfigSchema = new mongoose.Schema({
     provincia: {
         type: String,
         default: 'Alicante'
+    },
+    canMas7Dias: {
+        type: Number,
+        default: 100,
+        required: [true, 'El porcentaje para más de 7 días es obligatorio'],
+        min: [0, 'El porcentaje no puede ser menor a 0'],
+        max: [100, 'El porcentaje no puede ser mayor a 100']
+    },
+    canMas3Dias: {
+        type: Number,
+        default: 50,
+        required: [true, 'El porcentaje para más de 3 días es obligatorio'],
+        min: [0, 'El porcentaje no puede ser menor a 0'],
+        max: [100, 'El porcentaje no puede ser mayor a 100'],
+        validate: {
+            validator: function(value) {
+                return value < this.canMas7Dias;
+            },
+            message: 'El porcentaje de 3 días ({VALUE}%) debe ser menor que el de 7 días.'
+        }
     }
 
 

@@ -16,7 +16,6 @@ async function modconfig(req, res){
         const datosRecibidos = req.body;
         const update = {};
 
-        // Solo añadimos al objeto de actualización los campos que tengan contenido
         Object.keys(datosRecibidos).forEach(key => {
             if (datosRecibidos[key] && datosRecibidos[key].toString().trim() !== "") {
                 update[key] = datosRecibidos[key];
@@ -29,7 +28,7 @@ async function modconfig(req, res){
 
         const config = await Hotelconfig.findOneAndUpdate(
             {}, 
-            { $set: update }, // $set solo cambia los campos incluidos en 'update'
+            { $set: update },
             { new: true, upsert: true }
         );
 

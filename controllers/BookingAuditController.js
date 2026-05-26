@@ -11,7 +11,7 @@ async function createAuditLog(reservation_id, action, req, oldState = null, newS
       new_state: newState
     });
     const logGuardado = await log.save();
-    console.log(`✅ Auditoría registrada: ${action} para la reserva ${reservation_id} (ID Log: ${logGuardado._id})`);
+    console.log(`Auditoría registrada: ${action} para la reserva ${reservation_id} (ID Log: ${logGuardado._id})`);
   } catch (err) {
     console.error("Error guardando auditoría:", err);
   }

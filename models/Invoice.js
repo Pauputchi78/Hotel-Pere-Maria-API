@@ -106,8 +106,7 @@ const invoiceSchema = new mongoose.Schema({
 
 
 
-},{ timestamps: true }//Añadira dos campos automaticametne:
-//  Fecha de creación y de modificación "createdAt" y "updatedAt"
+},{ timestamps: true }
 );
 
 const Invoice = mongoose.model('Invoice', invoiceSchema);

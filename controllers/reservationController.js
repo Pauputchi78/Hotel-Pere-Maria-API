@@ -29,11 +29,10 @@ async function generateInvoice(req, res){
         const ultimo_invoicenum = await Invoice.findOne({
           invoice_number: new RegExp('^F' + anioActual)
         })
-        .sort({ invoice_number: -1 }) // Ordenamos por el string del número para sacar el más alto
+        .sort({ invoice_number: -1 })
         .select('invoice_number');
 
         if (!ultimo_invoicenum) {
-          // En caso de no tener ninguna factura creamos automaticamente el numero uno
           new_invoicenum = `F${anioActual}-00001`
         } else {
           const ultimoNumeroStr = ultimo_invoicenum.invoice_number.slice(-5);
@@ -74,7 +73,6 @@ async function generateInvoice(req, res){
         
       }
 
-      // --- GENERACIÓN DEL PDF ---
     const doc = new PDFDocument({ margin: 50 });
 
     res.setHeader('Content-Type', 'application/pdf');
@@ -134,7 +132,7 @@ async function generateInvoice(req, res){
     const baseImponible = totalCompleto / 1.10;
     const importeIva = totalCompleto - baseImponible;
 
-    // --- TABLA DE CONCEPTOS (SIMULADA) ---
+    // --- TABLA DE CONCEPTOS
     const tableTop = doc.y;
     doc.fillColor('#2d52a2').fontSize(11);
     doc.text('Descripción', 50, tableTop);
@@ -142,7 +140,6 @@ async function generateInvoice(req, res){
 
     doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).strokeColor('#2d52a2').stroke();
 
-    // Concepto con la aclaración de tasas incluidas
     doc.fillColor('#444444').fontSize(10);
     doc.text(`Servicio de alojamiento - Habitación ${new_invoice.room_id} (Impuestos incluidos)`, 50, tableTop + 30);
     doc.text(`${totalCompleto.toFixed(2)}€`, 450, tableTop + 30, { align: 'right' });
@@ -157,10 +154,9 @@ async function generateInvoice(req, res){
     // Línea de cierre de la tabla
     doc.moveTo(50, currentY + 10).lineTo(550, currentY + 10).strokeColor('#cccccc').stroke();
 
-    // --- PIE DE FACTURA: TOTALES DESGLOSADOS ---
+    // --- PIE DE FACTURA---
     const totalTop = currentY + 25;
     
-    // Cuadro gris de fondo extendido para los tres conceptos
     doc.rect(330, totalTop, 220, 75).fill('#f9f9f9');
     
     // Base Imponible
@@ -171,14 +167,12 @@ async function generateInvoice(req, res){
     doc.fillColor('#555555').fontSize(10).text('I.V.A. (10%):', 340, totalTop + 28);
     doc.fillColor('#000000').fontSize(10).text(`${importeIva.toFixed(2)}€`, 450, totalTop + 28, { align: 'right' });
     
-    // Línea interna divisoria fina
     doc.moveTo(340, totalTop + 44).lineTo(540, totalTop + 44).strokeColor('#e0e0e0').stroke();
 
-    // Importe Total (Destacado)
+    // Importe Total 
     doc.fillColor('#2d52a2').fontSize(12).text('TOTAL NETO:', 340, totalTop + 52, { bold: true });
     doc.fillColor('#000000').fontSize(12).text(`${totalCompleto.toFixed(2)}€`, 450, totalTop + 52, { align: 'right', bold: true });
 
-    // Nota legal
     doc.fontSize(8).fillColor('#aaaaaa').text('Gracias por su confianza en Hotel IES Pere Maria.', 50, 700, { align: 'center' });
 
     doc.end();
@@ -408,7 +402,6 @@ async function updateReservation(req, res) {
     let room = await Room.findOne({ room_id });
     if (!room) return res.status(400).json({ error: 'La habitación introducida no existe' });
 
-    //Falta validación para que no se pueda modifcar la fecha de entrada una vez pasada la fecha de entrada
     let nuevaEntrada = new Date(check_in);
     nuevaEntrada.setHours(12, 0, 0, 0);
 
@@ -518,15 +511,19 @@ async function calculateCancelationPrice(req, res) {
 
     const diasFaltantes = Math.ceil(diferenciaMs / (1000 * 60 * 60 * 24));
 
+    const config = await Hotelconfig.findOne();
+    let pr7dias = config.canMas7Dias/100;
+    let pr3dias = config.canMas3Dias/100
+
     let precioCancel = reservation.price;
     let discount = 0;
 
     if (diasFaltantes <= 0) {
       return res.status(404).json({ error: 'No es posible cancelar la reserva en la fecha actual' });
     } else if (diasFaltantes >= 7) {
-      discount = precioCancel * 1;
+      discount = precioCancel * pr7dias;
     } else if (diasFaltantes >= 3) {
-      discount = precioCancel * 0.5;
+      discount = precioCancel * pr3dias;
     }
 
     precioCancel = precioCancel - discount;
